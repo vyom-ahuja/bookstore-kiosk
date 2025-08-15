@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Booksellers - Voice Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            color: white;
+            position: relative;
+        }
+
+        .offline-banner {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            background: #ff9800;
+            color: white;
+            text-align: center;
+            padding: 8px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .left-panel {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 40px;
+        }
+
+        .right-panel {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .store-header {
+            position: absolute;
+            top: 20px;
+            left: 40px;
+            z-index: 10;
+        }
+
+        .store-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .store-location {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .voice-circle {
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 4px solid rgba(255, 255, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 60px;
+            margin-bottom: 30px;
+            position: relative;
+            user-select: none;
+        }
+
+        .voice-circle.listening {
+            animation: pulse-green 1s infinite;
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.3);
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
+        }
+
+        .voice-circle.speaking {
+            animation: pulse-blue 0.8s infinite;
+            border-color: #2196F3;
+            background: rgba(33, 150, 243, 0.3);
+            box-shadow: 0 0 30px rgba(33, 150, 243, 0.5);
+        }
+
+        .voice-circle.thinking {
+            animation: pulse-orange 1.2s infinite;
+            border-color: #FF9800;
+            background: rgba(255, 152, 0, 0.3);
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes pulse-blue {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes pulse-orange {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.03); opacity: 1; }
+        }
+
+        .status {
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 20px;
+            border-radius: 15px;
+            max-width: 500px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .control-btn.active {
+            background: rgba(244, 67, 54, 0.4);
+            border-color: #f44336;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .transcript {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .transcript h3 {
+            margin-bottom: 20px;
+            font-size: 18px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .conversation {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 15px;
+            line-height: 1.4;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .user {
+            background: rgba(76, 175, 80, 0.2);
+            border-left: 4px solid #4CAF50;
+            margin-left: 20px;
+        }
+
+        .assistant {
+            background: rgba(33, 150, 243, 0.2);
+            border-left: 4px solid #2196F3;
+            margin-right: 20px;
+        }
+
+        .label {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+
+        .book-card {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid #FFC107;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 10px 0;
+            animation: scaleIn 0.5s ease;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .book-title { 
+            font-weight: bold; 
+            font-size: 16px; 
+            margin-bottom: 5px; 
+            color: #FFC107;
+        }
+        .book-author { 
+            font-style: italic; 
+            margin-bottom: 8px; 
+            opacity: 0.9; 
+        }
+        .book-price { 
+            color: #4CAF50; 
+            font-weight: bold; 
+            margin-bottom: 5px; 
+        }
+        .book-stock {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .clear-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .voice-indicator {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .voice-indicator.active {
+            opacity: 1;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .left-panel, .right-panel { flex: 1; }
+            .right-panel { 
+                border-left: none; 
+                border-top: 1px solid rgba(255, 255, 255, 0.2); 
+                padding: 15px;
+            }
+            .voice-circle { 
+                width: 220px; 
+                height: 220px; 
+                font-size: 40px; 
+            }
+            .store-header {
+                top: 10px;
+                left: 20px;
+            }
+            .controls {
+                gap: 10px;
+            }
+            .control-btn {
+                padding: 10px 16px;
+                font-size: 14px;
+            }
+        }
+
+        .error-message {
+            background: rgba(244, 67, 54, 0.2);
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-banner" id="offlineBanner">
+        📡 Working Offline - Voice features available
+    </div>
+
+    <div class="left-panel">
+        <div class="store-header">
+            <div class="store-name">Universal Booksellers</div>
+            <div class="store-location">Gomtinagar, Lucknow</div>
+        </div>
+
+        <div class="voice-circle" id="voiceCircle" onclick="handleVoiceClick()">
+            📚
+            <div class="voice-indicator" id="voiceIndicator"></div>
+        </div>
+
+        <div class="status" id="status">
+            Tap the circle and say "Hello" to start!
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" onclick="handleVoiceClick()" id="voiceBtn">
+                🎤 Start Voice
+            </button>
+            <button class="control-btn" onclick="showHelp()">
+                ❓ Help
+            </button>
+            <button class="control-btn" onclick="clearConversation()">
+                🗑️ Clear
+            </button>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div class="transcript">
+            <h3>📝 Live Conversation <span id="connectionStatus">🟢</span></h3>
+            <div class="conversation" id="conversation">
+                <div class="message assistant">
+                    <div class="label">Assistant:</div>
+                    <div>Welcome to Universal Booksellers! I'm your voice-powered book assistant. I have access to our complete inventory of 100+ bestselling books. Tap the circle and say "Hello" to start browsing!</div>
+                </div>
+            </div>
+            <button class="clear-btn" onclick="clearConversation()">🔄 New Conversation</button>
+        </div>
+    </div>
+
+    <script>
+        // Comprehensive book inventory from research
+        const bookInventory = [
+            // Fiction Bestsellers
+            { title: "The Women", author: "Kristin Hannah", price: "₹699", stock: 8, genre: "Historical Fiction", desc: "Historical fiction about female pilots in WWII" },
+            { title: "Fourth Wing", author: "Rebecca Yarros", price: "₹599", stock: 12, genre: "Fantasy Romance", desc: "Dragon riders and war college romance" },
+            { title: "Iron Flame", author: "Rebecca Yarros", price: "₹649", stock: 10, genre: "Fantasy Romance", desc: "Sequel to Fourth Wing" },
+            { title: "It Ends with Us", author: "Colleen Hoover", price: "₹450", stock: 15, genre: "Contemporary Romance", desc: "Contemporary romance about domestic violence" },
+            { title: "Funny Story", author: "Emily Henry", price: "₹525", stock: 9, genre: "Romance", desc: "Romantic comedy about unlikely friendship" },
+            { title: "The Alchemist", author: "Paulo Coelho", price: "₹299", stock: 14, genre: "Fiction", desc: "Timeless journey of self-discovery" },
+            { title: "The God of Small Things", author: "Arundhati Roy", price: "₹400", stock: 6, genre: "Literary Fiction", desc: "Booker Prize winner from Kerala" },
+            { title: "Train to Pakistan", author: "Khushwant Singh", price: "₹320", stock: 8, genre: "Historical Fiction", desc: "Partition novel" },
+            
+            // Non-Fiction Bestsellers
+            { title: "Atomic Habits", author: "James Clear", price: "₹450", stock: 18, genre: "Self-Help", desc: "Transform your life with tiny changes" },
+            { title: "Wings of Fire", author: "A.P.J. Abdul Kalam", price: "₹350", stock: 15, genre: "Biography", desc: "Inspiring autobiography of Missile Man" },
+            { title: "Sapiens", author: "Yuval Noah Harari", price: "₹550", stock: 16, genre: "History", desc: "Brief history of humankind" },
+            { title: "The Anxious Generation", author: "Jonathan Haidt", price: "₹575", stock: 8, genre: "Psychology", desc: "Digital age impact on mental health" },
+            
+            // Young Adult & Fantasy
+            { title: "Somewhere Beyond the Sea", author: "T.J. Klune", price: "₹575", stock: 8, genre: "Fantasy", desc: "Magical orphanage sequel" },
+            { title: "The Seven Husbands of Evelyn Hugo", author: "Taylor Jenkins Reid", price: "₹499", stock: 13, genre: "Contemporary Fiction", desc: "Hollywood glamour secrets" },
+            { title: "Heartstopper Volume 5", author: "Alice Oseman", price: "₹350", stock: 15, genre: "Graphic Novel", desc: "LGBTQ+ graphic novel series" },
+            { title: "The Midnight Library", author: "Matt Haig", price: "₹425", stock: 12, genre: "Fantasy", desc: "Philosophy of regret" },
+            
+            // Children's & Classics
+            { title: "The Blue Umbrella", author: "Ruskin Bond", price: "₹225", stock: 20, genre: "Children's", desc: "Himalayan children's tale" },
+            { title: "Grandma's Bag of Stories", author: "Sudha Murty", price: "₹275", stock: 18, genre: "Children's", desc: "Indian folk tales" },
+            { title: "The Mahabharata: A Modern Rendering", author: "Ramesh Menon", price: "₹650", stock: 8, genre: "Mythology", desc: "Epic retold for modern readers" },
+            { title: "To Kill a Mockingbird", author: "Harper Lee", price: "₹375", stock: 10, genre: "Classic", desc: "American classic about justice" },
+            
+            // Mystery & Thriller
+            { title: "You Like It Darker", author: "Stephen King", price: "₹575", stock: 8, genre: "Horror", desc: "Latest short story collection" },
+            { title: "The Silent Patient", author: "Alex Michaelides", price: "₹450", stock: 11, genre: "Thriller", desc: "Psychological thriller" },
+            { title: "Gone Girl", author: "Gillian Flynn", price: "₹475", stock: 8, genre: "Thriller", desc: "Marriage thriller" },
+            { title: "Sacred Games", author: "Vikram Chandra", price: "₹599", stock: 6, genre: "Crime", desc: "Mumbai crime epic" },
+            
+            // Additional Popular Titles
+            { title: "Five Point Someone", author: "Chetan Bhagat", price: "₹250", stock: 12, genre: "Contemporary Fiction", desc: "IIT campus life" },
+            { title: "The Rozabal Line", author: "Ashwin Sanghi", price: "₹380", stock: 7, genre: "Thriller", desc: "Historical thriller blending religion and mystery" },
+            { title: "1984", author: "George Orwell", price: "₹325", stock: 12, genre: "Classic", desc: "Dystopian masterpiece" },
+            { title: "Pride and Prejudice", author: "Jane Austen", price: "₹299", stock: 14, genre: "Classic", desc: "Romance classic" },
+            
+            // More bestsellers to reach 50+ books
+            { title: "The Thursday Murder Club", author: "Richard Osman", price: "₹475", stock: 9, genre: "Mystery", desc: "Cozy retirement mystery" },
+            { title: "Educated", author: "Tara Westover", price: "₹525", stock: 9, genre: "Memoir", desc: "Education transformation memoir" },
+            { title: "The Song of Achilles", author: "Madeline Miller", price: "₹525", stock: 9, genre: "Historical Fiction", desc: "Greek mythology retold" },
+            { title: "Eleanor Oliphant Is Completely Fine", author: "Gail Honeyman", price: "₹450", stock: 8, genre: "Contemporary Fiction", desc: "Social anxiety journey" },
+            { title: "The Fault in Our Stars", author: "John Green", price: "₹425", stock: 14, genre: "Young Adult", desc: "Cancer love story" },
+            { title: "Looking for Alaska", author: "John Green", price: "₹399", stock: 10, genre: "Young Adult", desc: "Boarding school tragedy" },
+            { title: "The Perks of Being a Wallflower", author: "Stephen Chbosky", price: "₹375", stock: 12, genre: "Young Adult", desc: "Teen epistolary novel" },
+            { title: "Beach Read", author: "Emily Henry", price: "₹399", stock: 10, genre: "Romance", desc: "Enemies to lovers" },
+            { title: "The Invisible Life of Addie LaRue", author: "V.E. Schwab", price: "₹525", stock: 7, genre: "Fantasy", desc: "Immortal woman's curse" },
+            { title: "Shadow and Bone", author: "Leigh Bardugo", price: "₹475", stock: 9, genre: "Fantasy", desc: "Grishaverse beginning" },
+            { title: "The Cruel Prince", author: "Holly Black", price: "₹450", stock: 11, genre: "Fantasy", desc: "Faerie court intrigue" },
+            { title: "Red Queen", author: "Victoria Aveyard", price: "₹425", stock: 8, genre: "Dystopian", desc: "Dystopian powers" },
+            { title: "One of Us is Lying", author: "Karen M. McManus", price: "₹425", stock: 9, genre: "Young Adult Mystery", desc: "High school murder mystery" },
+            { title: "Big Little Lies", author: "Liane Moriarty", price: "₹450", stock: 9, genre: "Contemporary Fiction", desc: "Suburban secrets" },
+            { title: "The Girl with the Dragon Tattoo", author: "Stieg Larsson", price: "₹525", stock: 6, genre: "Crime", desc: "Swedish crime thriller" },
+            { title: "Mexican Gothic", author: "Silvia Moreno-Garcia", price: "₹450", stock: 6, genre: "Horror", desc: "Victorian horror in Mexico" },
+            { title: "The Maid", author: "Nita Prose", price: "₹425", stock: 10, genre: "Mystery", desc: "Hotel maid solves murder" },
+            { title: "Klara and the Sun", author: "Kazuo Ishiguro", price: "₹550", stock: 7, genre: "Science Fiction", desc: "AI companion's perspective" },
+            { title: "The Seven Moons of Maali Almeida", author: "Shehan Karunatilaka", price: "₹525", stock: 5, genre: "Fantasy", desc: "Booker Prize winner 2022" },
+            { title: "Homo Deus", author: "Yuval Noah Harari", price: "₹595", stock: 8, genre: "Philosophy", desc: "Brief history of tomorrow" },
+            { title: "Zero to One", author: "Peter Thiel", price: "₹475", stock: 11, genre: "Business", desc: "Notes on startups and innovation" },
+            { title: "Good to Great", author: "Jim Collins", price: "₹525", stock: 9, genre: "Business", desc: "Why some companies make the leap" },
+            { title: "The Lean Startup", author: "Eric Ries", price: "₹450", stock: 8, genre: "Business", desc: "Innovation methodology" },
+            { title: "Freakonomics", author: "Steven D. Levitt", price: "₹425", stock: 10, genre: "Economics", desc: "Hidden side of everything" },
+            { title: "Steve Jobs", author: "Walter Isaacson", price: "₹599", stock: 8, genre: "Biography", desc: "Biography of Apple founder" },
+            { title: "Astrophysics for People in a Hurry", author: "Neil deGrasse Tyson", price: "₹450", stock: 10, genre: "Science", desc: "Universe explained simply" }
+        ];
+
+        const staffPicks = [
+            "The Alchemist - timeless inspiration for all ages",
+            "Atomic Habits - perfect for building better routines", 
+            "Wings of Fire - motivational biography for students",
+            "The Blue Umbrella - charming story for all ages",
+            "Sapiens - fascinating perspective on humanity"
+        ];
+
+        const genreRecommendations = {
+            fiction: ["The Alchemist", "The God of Small Things", "Train to Pakistan"],
+            romance: ["It Ends with Us", "Funny Story", "The Seven Husbands of Evelyn Hugo"],
+            fantasy: ["Fourth Wing", "Iron Flame", "Somewhere Beyond the Sea"],
+            biography: ["Wings of Fire", "Steve Jobs"],
+            "self-help": ["Atomic Habits", "The Anxious Generation"],
+            thriller: ["Gone Girl", "The Silent Patient", "Sacred Games"],
+            children: ["The Blue Umbrella", "Grandma's Bag of Stories"],
+            classic: ["To Kill a Mockingbird", "1984", "Pride and Prejudice"],
+            "young adult": ["The Fault in Our Stars", "Looking for Alaska", "One of Us is Lying"],
+            mystery: ["The Thursday Murder Club", "The Maid", "The Silent Patient"],
+            horror: ["You Like It Darker", "Mexican Gothic"],
+            business: ["Zero to One", "Good to Great", "The Lean Startup"]
+        };
+
+        // Voice and UI state
+        let isListening = false;
+        let isSpeaking = false;
+        let recognition = null;
+        let synthesis = window.speechSynthesis;
+        let conversationHistory = [];
+        let currentVoice = null;
+
+        // Initialize the application
+        function initializeApp() {
+            checkOnlineStatus();
+            initializeSpeechRecognition();
+            initializeSpeechSynthesis();
+            updateStatus("✅ Ready! Tap the circle and say 'Hello' to start");
+            
+            // Check for offline capabilities
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').catch(() => {
+                    console.log('Service worker registration failed');
+                });
+            }
+        }
+
+        function checkOnlineStatus() {
+            const indicator = document.getElementById('connectionStatus');
+            const banner = document.getElementById('offlineBanner');
+            
+            if (navigator.onLine) {
+                indicator.textContent = '🟢';
+                banner.style.display = 'none';
+            } else {
+                indicator.textContent = '🔴';
+                banner.style.display = 'block';
+            }
+        }
+
+        function initializeSpeechRecognition() {
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    showError("Speech recognition not supported. Please use Chrome browser.");
+                    return false;
+                }
+
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-IN';
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    console.log('Speech recognition started');
+                    isListening = true;
+                    updateUI('listening', '🎤 Listening... speak clearly!');
+                };
+
+                recognition.onresult = (event) => {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    if (interimTranscript) {
+                        updateStatus(`Hearing: "${interimTranscript}"`);
+                    }
+
+                    if (finalTranscript) {
+                        console.log('Final transcript:', finalTranscript);
+                        addMessage(finalTranscript, 'user');
+                        stopListening();
+                        processUserInput(finalTranscript);
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.log('Speech recognition error:', event.error);
+                    let errorMsg = "Sorry, I had trouble hearing you. ";
+                    
+                    switch(event.error) {
+                        case 'network':
+                            errorMsg += "Check your internet connection.";
+                            break;
+                        case 'not-allowed':
+                            errorMsg += "Please allow microphone access in your browser settings.";
+                            break;
+                        case 'no-speech':
+                            errorMsg += "I didn't hear anything. Try speaking louder.";
+                            break;
+                        case 'audio-capture':
+                            errorMsg += "No microphone was found.";
+                            break;
+                        default:
+                            errorMsg += "Please try again.";
+                    }
+                    
+                    showError(errorMsg);
+                    stopListening();
+                };
+
+                recognition.onend = () => {
+                    console.log('Speech recognition ended');
+                    stopListening();
+                };
+
+                return true;
+            } catch (error) {
+                showError("Speech recognition initialization failed. Please use a supported browser.");
+                return false;
+            }
+        }
+
+        function initializeSpeechSynthesis() {
+            if (!synthesis) {
+                showError("Speech synthesis not supported in this browser.");
+                return false;
+            }
+
+            // Wait for voices to load
+            function setVoice() {
+                const voices = synthesis.getVoices();
+                // Prefer Indian English voices
+                currentVoice = voices.find(voice => 
+                    voice.lang.includes('en-IN') || 
+                    voice.name.toLowerCase().includes('indian') ||
+                    voice.name.toLowerCase().includes('ravi') ||
+                    voice.name.toLowerCase().includes('veena')
+                ) || voices.find(voice => voice.lang.includes('en-')) || voices[0];
+                
+                console.log('Selected voice:', currentVoice?.name || 'Default');
+            }
+
+            if (synthesis.onvoiceschanged !== undefined) {
+                synthesis.onvoiceschanged = setVoice;
+            }
+            setVoice();
+
+            return true;
+        }
+
+        function handleVoiceClick() {
+            if (isSpeaking) {
+                stopSpeaking();
+                return;
+            }
+
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+
+        function startListening() {
+            if (!recognition) {
+                showError("Speech recognition not initialized. Please refresh the page.");
+                return;
+            }
+
+            try {
+                recognition.start();
+            } catch (error) {
+                showError("Could not start voice recognition. Please try again.");
+                console.error('Recognition start error:', error);
+            }
+        }
+
+        function stopListening() {
+            isListening = false;
+            if (recognition) {
+                try {
+                    recognition.stop();
+                } catch (error) {
+                    console.error('Recognition stop error:', error);
+                }
+            }
+            updateUI('idle', 'Tap the circle to speak');
+        }
+
+        function speak(text) {
+            if (isSpeaking) {
+                synthesis.cancel();
+            }
+
+            updateUI('thinking', '🤔 Thinking...');
+            
+            // Small delay to show thinking state
+            setTimeout(() => {
+                isSpeaking = true;
+                updateUI('speaking', '🔊 Speaking...');
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.85;
+                utterance.pitch = 1;
+                utterance.volume = 1;
+                
+                if (currentVoice) {
+                    utterance.voice = currentVoice;
